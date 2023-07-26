@@ -195,7 +195,6 @@ class Timers:
                 # groups inside their class.
                 rank_name_to_time[rank, i] = self._timers[name].elapsed(
                     reset=reset)
-
         # See the note above for why we are not using gather.
         torch.distributed._all_gather_base(rank_name_to_time.view(-1),
                                            rank_name_to_time[rank, :].view(-1))
@@ -279,7 +278,6 @@ class Timers:
         else:
             raise Exception('unknown timing log option {}'.format(
                 self._log_option))
-
         # If no input rank is provided, log on last rank.
         if rank is None:
             rank = torch.distributed.get_world_size() - 1

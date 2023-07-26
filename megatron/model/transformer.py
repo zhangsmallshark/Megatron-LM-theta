@@ -19,6 +19,8 @@ from megatron.model.fused_bias_gelu import bias_gelu_impl
 from megatron.model.rotary_pos_embedding import apply_rotary_pos_emb
 from megatron.model.utils import attention_mask_func, openai_gelu, erf_gelu
 
+from megatron import get_stream
+
 try:
     from einops import rearrange
 except ImportError:
@@ -152,6 +154,86 @@ class ParallelMLP(MegatronModule):
         # [s, b, h]
         output, output_bias = self.dense_4h_to_h(intermediate_parallel)
         return output, output_bias
+
+
+class ParallelMLP1(MegatronModule):
+    """MLP.
+
+    MLP will take the input with h hidden state, project it to 4*h
+    hidden dimension, perform nonlinear transformation, and project the
+    state back into h hidden dimension.
+    """
+
+    def __init__(self, init_method, output_layer_init_method, intra_partitions=2):
+        super(ParallelMLP1, self).__init__()
+        args = get_args()
+
+        self.add_bias = args.add_bias_linear
+
+        self.intra_partitions = intra_partitions
+
+        # Project to 4h. If using swiglu double the output width, see https://arxiv.org/pdf/2002.05202.pdf
+        self.dense_h_to_4h = tensor_parallel.ColumnParallelLinear1(
+            args.hidden_size,
+            args.ffn_hidden_size * 2 if args.swiglu else args.ffn_hidden_size,
+            self.intra_partitions,
+            bias=self.add_bias,
+            gather_output=False,
+            init_method=init_method,
+            skip_bias_add=True,
+            async_tensor_model_parallel_allreduce=args.async_tensor_model_parallel_allreduce,
+            **_args_to_kwargs())
+
+        self.bias_gelu_fusion = False
+        self.activation_func = None
+        self.swiglu = args.swiglu
+
+        if args.openai_gelu:
+            self.activation_func = openai_gelu
+        elif args.onnx_safe:
+            self.activation_func = erf_gelu
+        elif args.swiglu:
+            def swiglu(x):
+                x = torch.chunk(x, 2, dim=-1)
+                return F.silu(x[0]) * x[1]
+            self.activation_func = swiglu
+        elif args.squared_relu:
+            def squared_relu(x):
+                return torch.pow(F.relu(x), 2)
+            self.activation_func = squared_relu
+        else:
+            self.bias_gelu_fusion = args.bias_gelu_fusion
+            self.activation_func = F.gelu
+
+        # Project back to h.
+        self.dense_4h_to_h = tensor_parallel.RowParallelLinear1(
+            args.ffn_hidden_size,
+            args.hidden_size,
+            self.intra_partitions,
+            bias=self.add_bias,
+            input_is_parallel=True,
+            init_method=output_layer_init_method,
+            skip_bias_add=True,
+            **_args_to_kwargs())
+
+    def forward(self, hidden_states):
+
+        # [s, b, 4hp]
+        intermediate_parallel, bias_parallel = self.dense_h_to_4h(hidden_states)
+
+        if self.bias_gelu_fusion:
+            assert self.add_bias is True
+            assert self.activation_func == F.gelu
+            intermediate_parallel = bias_gelu_impl(intermediate_parallel, bias_parallel)
+        else:
+            if bias_parallel is not None:
+                intermediate_parallel = intermediate_parallel + bias_parallel
+            intermediate_parallel = self.activation_func(intermediate_parallel)
+
+        # [s, b, h]
+        output, output_bias = self.dense_4h_to_h(intermediate_parallel)
+        return output, output_bias
+
 
 class SwitchMLP(MegatronModule):
     """
@@ -677,6 +759,292 @@ class ParallelAttention(MegatronModule):
         return output, bias
 
 
+class ParallelAttention1(MegatronModule):
+    """Parallel self-attention layer abstract class.
+
+    Self-attention layer takes input with size [s, b, h]
+    and returns output of the same size.
+    """
+
+    def __init__(self, init_method,
+                 output_layer_init_method, layer_number,
+                 attention_type=AttnType.self_attn,
+                 attn_mask_type=AttnMaskType.padding,
+                 intra_partitions=2):
+        super(ParallelAttention1, self).__init__()
+        args = get_args()
+        self.layer_number = max(1, layer_number)
+        self.attention_type = attention_type
+        self.attn_mask_type = attn_mask_type
+        self.params_dtype = args.params_dtype
+        self.sequence_parallel = args.sequence_parallel
+
+        self.use_flash_attn = args.use_flash_attn \
+            and attention_type == AttnType.self_attn \
+            and self.attn_mask_type == AttnMaskType.causal
+        if self.use_flash_attn:
+            if flash_attn_unpadded_func is None:
+                raise ImportError('FlashAttention is not installed, please install with '
+                                  'pip install flash-attn')
+            assert attention_type == AttnType.self_attn, ('FlashAttention code path only supports '
+                                                          'self-attention for now')
+            assert self.attn_mask_type == AttnMaskType.causal, ('FlashAttention code path only '
+                                                                'supports causal mask for now')
+            if rearrange is None:
+                raise ImportError('einops is not installed, please install with pip install einops')
+
+        projection_size = args.kv_channels * args.num_attention_heads
+
+        # Per attention head and per partition values.
+        world_size = mpu.get_tensor_model_parallel_world_size()
+        self.hidden_size_per_attention_head = core.utils.divide(
+            projection_size, args.num_attention_heads)
+        self.num_attention_heads_per_partition = core.utils.divide(
+            args.num_attention_heads, world_size)
+
+        self.intra_partitions = intra_partitions
+        self.num_attention_heads_per_partition = core.utils.divide(
+            self.num_attention_heads_per_partition, self.intra_partitions)
+
+        # Strided linear layer.
+        if attention_type == AttnType.self_attn:
+            self.query_key_value = tensor_parallel.ColumnParallelLinear1(
+                args.hidden_size,
+                3 * projection_size,
+                self.intra_partitions,
+                bias=args.add_bias_linear,
+                gather_output=False,
+                init_method=init_method,
+                async_tensor_model_parallel_allreduce=args.async_tensor_model_parallel_allreduce,
+                **_args_to_kwargs())
+        else:
+            assert attention_type == AttnType.cross_attn
+            self.query = tensor_parallel.ColumnParallelLinear1(
+                args.hidden_size,
+                projection_size,
+                self.intra_partitions,
+                bias=args.add_bias_linear,
+                gather_output=False,
+                init_method=init_method,
+                async_tensor_model_parallel_allreduce=args.async_tensor_model_parallel_allreduce,
+                **_args_to_kwargs())
+
+            self.key_value = tensor_parallel.ColumnParallelLinear1(
+                args.hidden_size,
+                2 * projection_size,
+                self.intra_partitions,
+                bias=args.add_bias_linear,
+                gather_output=False,
+                init_method=init_method,
+                async_tensor_model_parallel_allreduce=args.async_tensor_model_parallel_allreduce,
+                **_args_to_kwargs())
+
+        self.core_attention = CoreAttention(self.layer_number,
+                                            self.attn_mask_type)
+        self.checkpoint_core_attention = args.recompute_granularity == 'selective'
+
+        if self.use_flash_attn:
+            self.core_attention_flash = FlashSelfAttention(
+                causal=True, attention_dropout=args.attention_dropout
+            )
+
+        # Output.
+        self.dense = tensor_parallel.RowParallelLinear1(
+            projection_size,
+            args.hidden_size,
+            self.intra_partitions,
+            bias=args.add_bias_linear,
+            input_is_parallel=True,
+            init_method=output_layer_init_method,
+            skip_bias_add=True,
+            **_args_to_kwargs())
+
+        self.start_comp_event = torch.cuda.Event(blocking=True)
+
+    def _checkpointed_attention_forward(self, query_layer, key_layer,
+                                        value_layer, attention_mask,
+                                        rotary_pos_emb=None):
+        """Forward method with activation checkpointing."""
+        def custom_forward(*inputs):
+            query_layer = inputs[0]
+            key_layer = inputs[1]
+            value_layer = inputs[2]
+            attention_mask = inputs[3]
+            output_ = self.core_attention(query_layer, key_layer,
+                                          value_layer, attention_mask)
+            return output_
+
+        q_pos_emb, k_pos_emb = (None, None) if rotary_pos_emb is None \
+            else rotary_pos_emb
+
+        hidden_states = tensor_parallel.checkpoint(
+            custom_forward,
+            False, query_layer, key_layer, value_layer, attention_mask,
+            q_pos_emb, k_pos_emb)
+
+        return hidden_states
+
+    def _allocate_memory(self, inference_max_sequence_len, batch_size):
+        return torch.empty(
+            inference_max_sequence_len,
+            batch_size,
+            self.num_attention_heads_per_partition,
+            self.hidden_size_per_attention_head,
+            dtype=self.params_dtype,
+            device=torch.cuda.current_device())
+
+    def forward(self, hidden_states, attention_mask,
+                encoder_output=None, inference_params=None,
+                rotary_pos_emb=None):
+        # hidden_states: [sq, b, h]
+        self.start_comp_event.record()
+
+        # =================================================
+        # Pre-allocate memory for key-values for inference.
+        # =================================================
+        is_first_step = False
+        if inference_params:
+            if self.layer_number not in inference_params.key_value_memory_dict:
+                inf_max_seq_len = inference_params.max_sequence_len
+                inf_max_batch_size = inference_params.max_batch_size
+                inference_key_memory = self._allocate_memory(
+                    inf_max_seq_len, inf_max_batch_size)
+                inference_value_memory = self._allocate_memory(
+                    inf_max_seq_len, inf_max_batch_size)
+                inference_params.key_value_memory_dict[self.layer_number] = (
+                    inference_key_memory, inference_value_memory)
+                is_first_step = True
+            else:
+                inference_key_memory, inference_value_memory = \
+                    inference_params.key_value_memory_dict[self.layer_number]
+
+        # =====================
+        # Query, Key, and Value
+        # =====================
+        if self.attention_type == AttnType.self_attn:
+            # Attention heads [sq, b, h] --> [sq, b, (np * 3 * hn)]
+            mixed_x_layer, _ = self.query_key_value(hidden_states)
+
+            # [sq, b, (np * 3 * hn)] --> [sq, b, np, 3 * hn]
+            new_tensor_shape = mixed_x_layer.size()[:-1] + \
+                (self.num_attention_heads_per_partition,
+                3 * self.hidden_size_per_attention_head)
+            mixed_x_layer = mixed_x_layer.view(*new_tensor_shape)
+
+            # [sq, b, np, 3 * hn] --> 3 [sq, b, np, hn]
+            (query_layer,
+            key_layer,
+            value_layer) = tensor_parallel.split_tensor_along_last_dim(mixed_x_layer, 3)
+        else:
+            # Attention heads [sk, b, h] --> [sk, b, (np * 2 * hn)]
+            mixed_kv_layer, _ = self.key_value(encoder_output)
+
+            # [sk, b, (np * 2 * hn)] --> [sk, b, np, 2 * hn]
+            new_tensor_shape = mixed_kv_layer.size()[:-1] + \
+                (self.num_attention_heads_per_partition,
+                2 * self.hidden_size_per_attention_head)
+            mixed_kv_layer = mixed_kv_layer.view(*new_tensor_shape)
+
+            # [sk, b, np, 2 * hn] --> 2 [sk, b, np, hn]
+            (key_layer,
+            value_layer) = tensor_parallel.split_tensor_along_last_dim(mixed_kv_layer, 2)
+
+            # Attention head [sq, b, h] --> [sq, b, hp]
+            query_layer, _ = self.query(hidden_states)
+            # [sq, b, hp] --> [sq, b, np, hn]
+            new_tensor_shape = query_layer.size()[:-1] + \
+                (self.num_attention_heads_per_partition,
+                self.hidden_size_per_attention_head)
+            query_layer = query_layer.view(*new_tensor_shape)
+
+        # ==================================
+        # Adjust key and value for inference
+        # ==================================
+
+        # duplicate the pos_emb for self attention
+        if rotary_pos_emb is not None:
+            if isinstance(rotary_pos_emb, tuple):
+                rotary_pos_emb = rotary_pos_emb
+            else:
+                rotary_pos_emb = ((rotary_pos_emb,) * 2)
+
+        if inference_params:
+            batch_start = inference_params.batch_size_offset
+            batch_end = batch_start + key_layer.size(1)
+            assert batch_end <= inference_key_memory.size(1)
+            sequence_start = inference_params.sequence_len_offset
+            sequence_end = sequence_start + key_layer.size(0)
+            assert sequence_end <= inference_key_memory.size(0)
+            # Copy key and values.
+            inference_key_memory[sequence_start:sequence_end,
+                                batch_start:batch_end, ...] = key_layer
+            inference_value_memory[sequence_start:sequence_end,
+                                batch_start:batch_end, ...] = value_layer
+            key_layer = inference_key_memory[
+                :sequence_end, batch_start:batch_end, ...]
+            value_layer = inference_value_memory[
+                :sequence_end, batch_start:batch_end, ...]
+
+
+            # adjust the key rotary positional embedding
+            if rotary_pos_emb is not None:
+                q_pos_emb, k_pos_emb = rotary_pos_emb
+                # need to cross check this condition during inference
+                # if not set_inference_key_value_memory:
+                if not is_first_step:
+                    # In inference, we compute one token at a time.
+                    # Select the correct positional embedding
+                    # (only the last token in the sequence)
+                    q_pos_emb = q_pos_emb[sequence_end - 1 : sequence_end]
+                else:
+                    # In the first forward pass of inference,
+                    # we use the entire provided prefix.
+                    # q_pos_emb here has the rope embeddings of the entire
+                    # prefix + to-be-generated output so
+                    # we slice to just the prefix.
+                    q_pos_emb = q_pos_emb[:sequence_end, :, :, :]
+                k_pos_emb = k_pos_emb[:sequence_end, :, :, :]
+                rotary_pos_emb = (q_pos_emb, k_pos_emb)
+
+        # ==================================
+        # core attention computation
+        # ==================================
+
+        # apply relative positional encoding (rotary embedding)
+        if rotary_pos_emb is not None:
+            q_pos_emb, k_pos_emb = rotary_pos_emb
+            query_layer = apply_rotary_pos_emb(query_layer, q_pos_emb)
+            key_layer = apply_rotary_pos_emb(key_layer, k_pos_emb)
+            # TODO, can apply positional embedding to value_layer so it has
+            # absolute positional embedding.
+            # otherwise, only relative positional embedding takes effect
+            # value_layer = apply_rotary_pos_emb(value_layer, k_pos_emb)
+
+        if not self.use_flash_attn:
+            if self.checkpoint_core_attention:
+                context_layer = self._checkpointed_attention_forward(
+                    query_layer, key_layer, value_layer, attention_mask)
+            else:
+                context_layer = self.core_attention(
+                    query_layer, key_layer, value_layer, attention_mask)
+        else:
+            q, k, v = [rearrange(x, 's b ... -> b s ...').contiguous()
+                    for x in (query_layer, key_layer, value_layer)]
+            if not self.sequence_parallel:
+                with tensor_parallel.get_cuda_rng_tracker().fork():
+                    context_layer = self.core_attention_flash(q, k, v)
+            else:
+                context_layer = self.core_attention_flash(q, k, v)
+            context_layer = rearrange(context_layer, 'b s h d -> s b (h d)').contiguous()
+
+        # =================
+        # Output. [sq, b, h]
+        # =================
+        output, bias = self.dense(context_layer)
+
+        return output, bias
+
+
 def bias_dropout_add(x, bias, residual, prob, training):
     # type: (Tensor, Optional[Tensor], Tensor, float, bool) -> Tensor
     if bias is not None:
@@ -741,12 +1109,18 @@ class ParallelTransformerLayer(MegatronModule):
             apply_layernorm_1p=args.apply_layernorm_1p)
 
         # Self attention.
-        self.self_attention = ParallelAttention(
-            init_method,
-            output_layer_init_method,
-            layer_number,
-            attention_type=AttnType.self_attn,
-            attn_mask_type=self_attn_mask_type)
+        # self.self_attention = ParallelAttention(
+        #     init_method,
+        #     output_layer_init_method,
+        #     layer_number,
+        #     attention_type=AttnType.self_attn,
+        #     attn_mask_type=self_attn_mask_type)
+
+        self.intra_partitions = 1
+        self.p_self_attention = torch.nn.ModuleList(
+            ParallelAttention1(init_method, output_layer_init_method, layer_number, attention_type=AttnType.self_attn, 
+                               attn_mask_type=self_attn_mask_type, intra_partitions=self.intra_partitions) for i in range(self.intra_partitions))
+
         self.hidden_dropout = args.hidden_dropout
         self.bias_dropout_fusion = args.bias_dropout_fusion
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0.0 else None
@@ -781,7 +1155,9 @@ class ParallelTransformerLayer(MegatronModule):
         if args.num_experts is not None:
             self.mlp = SwitchMLP(init_method, output_layer_init_method)
         else:
-            self.mlp = ParallelMLP(init_method, output_layer_init_method)
+            # self.mlp = ParallelMLP(init_method, output_layer_init_method)
+            self.p_mlp = torch.nn.ModuleList(
+                ParallelMLP1(init_method, output_layer_init_method, intra_partitions=self.intra_partitions) for i in range(self.intra_partitions))
 
         # Set bias+dropout+add fusion grad_enable execution handler.
         TORCH_MAJOR = int(torch.__version__.split('.')[0])
@@ -1031,12 +1407,47 @@ class ParallelTransformerLayer(MegatronModule):
         layernorm_output = self.input_layernorm(hidden_states)
 
         # Self attention.
-        attention_output, attention_bias = \
-            self.self_attention(
-                layernorm_output,
-                attention_mask,
-                inference_params=inference_params,
-                rotary_pos_emb=rotary_pos_emb)
+        layernorm_output = tensor_parallel.copy_to_tensor_model_parallel_region(layernorm_output)
+        # p_attention_outputs = []
+        # p_attention_biases = []
+        attn_out_size = layernorm_output.size()
+        dtype = layernorm_output.dtype
+        dim_per_p = attn_out_size[-1] // self.intra_partitions
+        attn_bias_size = attn_out_size[-1]
+        # attention_output = torch.empty(attn_out_size, dtype=dtype, device=torch.cuda.current_device())
+        # attention_bias = torch.empty(attn_bias_size, dtype=dtype, device=torch.cuda.current_device())
+        attention_output = torch.zeros(attn_out_size, dtype=dtype, device=torch.cuda.current_device())
+        attention_bias = torch.zeros(attn_bias_size, dtype=dtype, device=torch.cuda.current_device())
+
+        # Self attention.
+        for i in range(self.intra_partitions):
+            s_idx = i % 4
+            current_stream = get_stream(s_idx)
+            # if i > 0:
+            #     current_stream.wait_event(self.p_self_attention[0].start_comp_event)
+            with torch.cuda.stream(current_stream):
+            # if True:
+                p_attention_output, p_attention_bias = \
+                    self.p_self_attention[i](
+                        layernorm_output,
+                        attention_mask,
+                        inference_params=inference_params,
+                        rotary_pos_emb=rotary_pos_emb)
+                # p_attention_outputs.append(p_attention_output)
+                # p_attention_biases.append(p_attention_bias)
+        i = 0
+        attention_output[:, :, dim_per_p*i:dim_per_p*(i+1)] = p_attention_output[:, :, :]
+        attention_bias[dim_per_p*i:dim_per_p*(i+1)] = p_attention_bias[:]
+
+        # attention_output = torch.cat(p_attention_outputs, dim=-1)
+        # attention_bias = torch.cat(p_attention_biases, dim=-1)
+
+        # attention_output, attention_bias = \
+        #     self.self_attention(
+        #         layernorm_output,
+        #         attention_mask,
+        #         inference_params=inference_params,
+        #         rotary_pos_emb=rotary_pos_emb)
 
         # Residual connection.
         if self.apply_residual_connection_post_layernorm:
@@ -1108,7 +1519,33 @@ class ParallelTransformerLayer(MegatronModule):
                             self.layer_type.name)
 
         # MLP.
-        mlp_output, mlp_bias = self.mlp(layernorm_output)
+        # mlp_output, mlp_bias = self.mlp(layernorm_output)
+
+        # p_mlp_outputs = []
+        # p_mlp_biases = []
+
+        mlp_out_size = layernorm_output.size()
+        dtype = layernorm_output.dtype
+        dim_per_p = mlp_out_size[-1] // self.intra_partitions
+        mlp_bias_size = mlp_out_size[-1]
+        # attention_output = torch.empty(mlp_out_size, dtype=dtype, device=torch.cuda.current_device())
+        # attention_bias = torch.empty(mlp_bias_size, dtype=dtype, device=torch.cuda.current_device())
+        mlp_output = torch.zeros(mlp_out_size, dtype=dtype, device=torch.cuda.current_device())
+        mlp_bias = torch.zeros(mlp_bias_size, dtype=dtype, device=torch.cuda.current_device())
+
+        for i in range(self.intra_partitions):
+            s_idx = i % 4
+            current_stream = get_stream(s_idx)
+            with torch.cuda.stream(current_stream):
+            # if True:
+                p_mlp_output, p_mlp_bias = self.p_mlp[i](layernorm_output)
+        #         p_mlp_outputs.append(p_mlp_output)
+        #         p_mlp_biases.append(p_mlp_bias)
+        # mlp_output = torch.cat(p_mlp_outputs, dim=-1)
+        # mlp_bias = torch.cat(p_mlp_biases, dim=-1)
+        i = 0
+        mlp_output[:, :, dim_per_p*i:dim_per_p*(i+1)] = p_mlp_output[:, :, :]
+        mlp_bias[dim_per_p*i:dim_per_p*(i+1)] = p_mlp_bias[:]
 
         # Second residual connection.
         if self.apply_residual_connection_post_layernorm:

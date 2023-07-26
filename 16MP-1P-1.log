@@ -1,0 +1,503 @@
+source-ing /home/czh5/genome/Megatron-LM-theta/ALCF/launch.sh
+source-ing /home/czh5/genome/Megatron-LM-theta/ALCF/args.sh
+------------------------
+SCRIPT_DIR=/home/czh5/genome/Megatron-LM-theta/ALCF
+SCRIPT_PATH=/home/czh5/genome/Megatron-LM-theta/ALCF/args.sh
+------------------------
+SOURCE=/home/czh5/genome/Megatron-LM-theta/ALCF/args.sh
+DIR=/home/czh5/genome/Megatron-LM-theta/ALCF
+------------------------
+source-ing /home/czh5/genome/Megatron-LM-theta/ALCF/setup.sh
+USING PYTHON: /usr/bin/python3
+CFLAGS: 
+LDFLAGS: 
+Setting up MPI on ThetaGPU from thetagpu04
+source-ing /home/czh5/genome/Megatron-LM-theta/ALCF/model.sh
+--------------------------------
+GLOBAL_BATCH=16
+--------------------------------
+OUTPUT TO: /home/czh5/genome/Megatron-LM-theta/outputs/GPT3_actCkpt_flashAttn_1.3B_z0_seqlen4096_mp16_pp1_nl20_hs2048_gb16_mb16
+Setting up ThetaGPU from thetagpu04
+Found venv at: /home/czh5/genome/Megatron-LM-theta/venvs/thetaGPU/2023-01-11-deepspeed
+USING PYTHON: /home/czh5/genome/Megatron-LM-theta/venvs/thetaGPU/2023-01-11-deepspeed/bin/python3
+    Running on 2 hosts     with 8 GPUs each     for a total of 16 GPUs
+Job started at: 2023-07-20-155516 on thetagpu04
+Job running in: /home/czh5/genome/Megatron-LM-theta/ALCF
+Training GPT-3 with 1.3B parameters
+Writing logs to: /home/czh5/genome/Megatron-LM-theta/outputs/GPT3_actCkpt_flashAttn_1.3B_z0_seqlen4096_mp16_pp1_nl20_hs2048_gb16_mb16
+to view output: tail -f $(tail -1 logfiles)
+i.e. tail -f /home/czh5/genome/Megatron-LM-theta/outputs/GPT3_actCkpt_flashAttn_1.3B_z0_seqlen4096_mp16_pp1_nl20_hs2048_gb16_mb16/logs/czh5-thetagpu04-nhosts2-ngpu16-2023-07-20-155516.log
+using: /home/czh5/genome/Megatron-LM-theta/venvs/thetaGPU/2023-01-11-deepspeed/bin/python3
+Job started at: 2023-07-20-155516 on thetagpu04
+Job running in: /home/czh5/genome/Megatron-LM-theta/ALCF
+Training GPT-3 with 1.3B parameters
+Writing logs to: /home/czh5/genome/Megatron-LM-theta/outputs/GPT3_actCkpt_flashAttn_1.3B_z0_seqlen4096_mp16_pp1_nl20_hs2048_gb16_mb16
+to view output: tail -f $(tail -1 logfiles)
+i.e. tail -f /home/czh5/genome/Megatron-LM-theta/outputs/GPT3_actCkpt_flashAttn_1.3B_z0_seqlen4096_mp16_pp1_nl20_hs2048_gb16_mb16/logs/czh5-thetagpu04-nhosts2-ngpu16-2023-07-20-155516.log
+EXEC=/lus/theta-fs0/software/thetagpu/openmpi/openmpi-4.1.4_ucx-1.14.0_gcc-9.4.0_cuda-11.8/bin/mpirun     --hostfile /var/tmp/cobalt.10144185     -x CFLAGS     -x LDFLAGS     -x http_proxy     -x PYTHONUSERBASE     -x https_proxy     -x PATH     -x LD_LIBRARY_PATH     -n 16     -npernode 8 /home/czh5/genome/Megatron-LM-theta/venvs/thetaGPU/2023-01-11-deepspeed/bin/python3 /home/czh5/genome/Megatron-LM-theta/pretrain_gpt.py     --use-flash-attn         --recompute-activations     --recompute-granularity full     --recompute-num-layers 1       --seed 18592   --DDP-impl local   --pipeline-model-parallel-size 1   --tensor-model-parallel-size 16   --num-layers 20   --hidden-size 2048   --num-attention-heads 64   --micro-batch-size 16   --global-batch-size 16   --seq-length 4096   --max-position-embeddings 4096   --train-iters 6   --lr-decay-iters 320000   --num-workers 1   --data-path /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/BookCorpusDataset_text_document   --vocab-file /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/gpt2-vocab.json   --merge-file /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/gpt2-merges.txt   --data-impl mmap   --split 949,50,1   --distributed-backend nccl   --lr 0.00015   --lr-decay-style cosine   --min-lr 1.0e-5   --weight-decay 1e-2   --clip-grad 1.0   --lr-warmup-fraction .01   --log-interval 1   --save-interval 1000   --eval-interval 1000   --eval-iters 1   --timing-log-level 2   --tensorboard-dir /home/czh5/genome/Megatron-LM-theta/outputs/GPT3_actCkpt_flashAttn_1.3B_z0_seqlen4096_mp16_pp1_nl20_hs2048_gb16_mb16/tensorboard   --log-timers-to-tensorboard   --tensorboard-log-interval 1 --fp16
+Writing logs to: /home/czh5/genome/Megatron-LM-theta/outputs/GPT3_actCkpt_flashAttn_1.3B_z0_seqlen4096_mp16_pp1_nl20_hs2048_gb16_mb16/logs/czh5-thetagpu04-nhosts2-ngpu16-2023-07-20-155516.log
+using world size: 16, data-parallel-size: 1, tensor-model-parallel size: 16, pipeline-model-parallel size: 1 
+using torch.float16 for parameters ...
+------------------------ arguments ------------------------
+  accumulate_allreduce_grads_in_fp32 .............. False
+  adam_beta1 ...................................... 0.9
+  adam_beta2 ...................................... 0.999
+  adam_eps ........................................ 1e-08
+  add_bias_linear ................................. True
+  add_position_embedding .......................... True
+  adlr_autoresume ................................. False
+  adlr_autoresume_interval ........................ 1000
+  apply_layernorm_1p .............................. False
+  apply_query_key_layer_scaling ................... True
+  apply_residual_connection_post_layernorm ........ False
+  async_tensor_model_parallel_allreduce ........... True
+  attention_dropout ............................... 0.1
+  attention_softmax_in_fp32 ....................... False
+  barrier_with_L1_time ............................ True
+  bert_binary_head ................................ True
+  bert_embedder_type .............................. megatron
+  bert_load ....................................... None
+  bf16 ............................................ False
+  bias_dropout_fusion ............................. True
+  bias_gelu_fusion ................................ True
+  biencoder_projection_dim ........................ 0
+  biencoder_shared_query_context_model ............ False
+  block_data_path ................................. None
+  classes_fraction ................................ 1.0
+  clip_grad ....................................... 1.0
+  consumed_train_samples .......................... 0
+  consumed_valid_samples .......................... 0
+  data_cache_path ................................. None
+  data_impl ....................................... mmap
+  data_parallel_random_init ....................... False
+  data_parallel_size .............................. 1
+  data_path ....................................... ['/lus/eagle/projects/MDClimSim/chengming/gpt_datasets/BookCorpusDataset_text_document']
+  data_per_class_fraction ......................... 1.0
+  data_sharding ................................... True
+  dataloader_type ................................. single
+  DDP_impl ........................................ local
+  decoder_num_layers .............................. None
+  decoder_seq_length .............................. None
+  dino_bottleneck_size ............................ 256
+  dino_freeze_last_layer .......................... 1
+  dino_head_hidden_size ........................... 2048
+  dino_local_crops_number ......................... 10
+  dino_local_img_size ............................. 96
+  dino_norm_last_layer ............................ False
+  dino_teacher_temp ............................... 0.07
+  dino_warmup_teacher_temp ........................ 0.04
+  dino_warmup_teacher_temp_epochs ................. 30
+  distribute_saved_activations .................... False
+  distributed_backend ............................. nccl
+  distributed_timeout_minutes ..................... 10
+  embedding_path .................................. None
+  embedding_weights_in_fp32 ....................... False
+  empty_unused_memory_level ....................... 0
+  encoder_num_layers .............................. 20
+  encoder_seq_length .............................. 4096
+  end_weight_decay ................................ 0.01
+  eod_mask_loss ................................... False
+  eval_interval ................................... 1000
+  eval_iters ...................................... 1
+  evidence_data_path .............................. None
+  exit_duration_in_mins ........................... None
+  exit_interval ................................... None
+  exit_on_missing_checkpoint ...................... False
+  exit_signal_handler ............................. False
+  ffn_hidden_size ................................. 8192
+  finetune ........................................ False
+  fp16 ............................................ True
+  fp16_lm_cross_entropy ........................... False
+  fp32_residual_connection ........................ False
+  fp8_amax_compute_algo ........................... most_recent
+  fp8_amax_history_len ............................ 1
+  fp8_e4m3 ........................................ False
+  fp8_hybrid ...................................... False
+  fp8_interval .................................... 1
+  fp8_margin ...................................... 0
+  fp8_wgrad ....................................... True
+  global_batch_size ............................... 16
+  gradient_accumulation_fusion .................... True
+  head_lr_mult .................................... 1.0
+  hidden_dropout .................................. 0.1
+  hidden_size ..................................... 2048
+  hysteresis ...................................... 2
+  ict_head_size ................................... None
+  ict_load ........................................ None
+  img_h ........................................... 224
+  img_w ........................................... 224
+  indexer_batch_size .............................. 128
+  indexer_log_interval ............................ 1000
+  inference_batch_times_seqlen_threshold .......... 512
+  init_method_std ................................. 0.02
+  init_method_xavier_uniform ...................... False
+  initial_loss_scale .............................. 4294967296
+  iter_per_epoch .................................. 1250
+  kv_channels ..................................... 32
+  layernorm_epsilon ............................... 1e-05
+  lazy_mpu_init ................................... None
+  load ............................................ None
+  local_rank ...................................... None
+  log_batch_size_to_tensorboard ................... False
+  log_interval .................................... 1
+  log_learning_rate_to_tensorboard ................ True
+  log_loss_scale_to_tensorboard ................... True
+  log_memory_to_tensorboard ....................... False
+  log_num_zeros_in_grad ........................... False
+  log_params_norm ................................. False
+  log_timers_to_tensorboard ....................... True
+  log_validation_ppl_to_tensorboard ............... False
+  log_world_size_to_tensorboard ................... False
+  loss_scale ...................................... None
+  loss_scale_window ............................... 1000
+  lr .............................................. 0.00015
+  lr_decay_iters .................................. 320000
+  lr_decay_samples ................................ None
+  lr_decay_style .................................. cosine
+  lr_warmup_fraction .............................. 0.01
+  lr_warmup_iters ................................. 0
+  lr_warmup_samples ............................... 0
+  make_vocab_size_divisible_by .................... 128
+  mask_factor ..................................... 1.0
+  mask_prob ....................................... 0.15
+  mask_type ....................................... random
+  masked_softmax_fusion ........................... True
+  max_position_embeddings ......................... 4096
+  max_tokens_to_oom ............................... 12000
+  merge_file ...................................... /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/gpt2-merges.txt
+  micro_batch_size ................................ 16
+  min_loss_scale .................................. 1.0
+  min_lr .......................................... 1e-05
+  mmap_warmup ..................................... False
+  no_load_optim ................................... None
+  no_load_rng ..................................... None
+  no_persist_layer_norm ........................... False
+  no_save_optim ................................... None
+  no_save_rng ..................................... None
+  num_attention_heads ............................. 64
+  num_channels .................................... 3
+  num_classes ..................................... 1000
+  num_experts ..................................... None
+  num_layers ...................................... 20
+  num_layers_per_virtual_pipeline_stage ........... None
+  num_workers ..................................... 1
+  onnx_safe ....................................... None
+  openai_gelu ..................................... False
+  optimizer ....................................... adam
+  output_bert_embeddings .......................... False
+  overlap_p2p_comm ................................ False
+  override_opt_param_scheduler .................... False
+  params_dtype .................................... torch.float16
+  patch_dim ....................................... 16
+  perform_initialization .......................... True
+  pipeline_model_parallel_size .................... 1
+  pipeline_model_parallel_split_rank .............. None
+  query_in_block_prob ............................. 0.1
+  rampup_batch_size ............................... None
+  rank ............................................ 0
+  recompute_granularity ........................... selective
+  recompute_method ................................ None
+  recompute_num_layers ............................ 1
+  reset_attention_mask ............................ False
+  reset_position_ids .............................. False
+  retriever_report_topk_accuracies ................ []
+  retriever_score_scaling ......................... False
+  retriever_seq_length ............................ 256
+  retro_add_retriever ............................. False
+  retro_cyclic_train_iters ........................ None
+  retro_encoder_attention_dropout ................. 0.1
+  retro_encoder_hidden_dropout .................... 0.1
+  retro_encoder_layers ............................ 2
+  retro_num_neighbors ............................. 2
+  retro_num_retrieved_chunks ...................... 2
+  retro_return_doc_ids ............................ False
+  retro_workdir ................................... None
+  rotary_percent .................................. 1.0
+  sample_rate ..................................... 1.0
+  save ............................................ None
+  save_interval ................................... 1000
+  scatter_gather_tensors_in_pipeline .............. True
+  seed ............................................ 18592
+  seq_length ...................................... 4096
+  sequence_parallel ............................... False
+  sgd_momentum .................................... 0.9
+  short_seq_prob .................................. 0.1
+  skip_train ...................................... False
+  split ........................................... 949,50,1
+  squared_relu .................................... False
+  standalone_embedding_stage ...................... False
+  start_weight_decay .............................. 0.01
+  swiglu .......................................... False
+  swin_backbone_type .............................. tiny
+  tensor_model_parallel_size ...................... 16
+  tensorboard_dir ................................. /home/czh5/genome/Megatron-LM-theta/outputs/GPT3_actCkpt_flashAttn_1.3B_z0_seqlen4096_mp16_pp1_nl20_hs2048_gb16_mb16/tensorboard
+  tensorboard_log_interval ........................ 1
+  tensorboard_queue_size .......................... 1000
+  test_data_path .................................. None
+  timing_log_level ................................ 2
+  timing_log_option ............................... minmax
+  titles_data_path ................................ None
+  tokenizer_model ................................. None
+  tokenizer_type .................................. GPT2BPETokenizer
+  train_data_path ................................. None
+  train_iters ..................................... 6
+  train_samples ................................... None
+  transformer_impl ................................ local
+  transformer_pipeline_model_parallel_size ........ 1
+  untie_embeddings_and_output_weights ............. False
+  use_checkpoint_args ............................. False
+  use_checkpoint_opt_param_scheduler .............. False
+  use_contiguous_buffers_in_local_ddp ............. True
+  use_cpu_initialization .......................... None
+  use_distributed_optimizer ....................... False
+  use_flash_attn .................................. True
+  use_one_sent_docs ............................... False
+  use_ring_exchange_p2p ........................... False
+  use_rotary_position_embeddings .................. False
+  valid_data_path ................................. None
+  variable_seq_lengths ............................ False
+  virtual_pipeline_model_parallel_size ............ None
+  vision_backbone_type ............................ vit
+  vision_pretraining .............................. False
+  vision_pretraining_type ......................... classify
+  vocab_extra_ids ................................. 0
+  vocab_file ...................................... /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/gpt2-vocab.json
+  vocab_size ...................................... None
+  weight_decay .................................... 0.01
+  weight_decay_incr_style ......................... constant
+  world_size ...................................... 16
+-------------------- end of arguments ---------------------
+setting number of micro-batches to constant 1
+> building GPT2BPETokenizer tokenizer ...
+ > padded vocab (size: 50257) with 943 dummy tokens (new size: 51200)
+> initializing torch distributed ...
+> setting tensorboard ...
+> initialized tensor model parallel with size 16
+> initialized pipeline model parallel with size 1
+> setting random seeds to 18592 ...
+> compiling dataset index builder ...
+make: Entering directory '/home/czh5/genome/Megatron-LM-theta/megatron/data'
+make: Nothing to be done for 'default'.
+make: Leaving directory '/home/czh5/genome/Megatron-LM-theta/megatron/data'
+>>> done with dataset index builder. Compilation time: 0.036 seconds
+> compiling and loading fused kernels ...
+NCCL version 2.14.3+cuda11.8
+>>> done with compiling and loading fused kernels. Compilation time: 4.134 seconds
+time to initialize megatron (seconds): 12.259
+[after megatron is initialized] datetime: 2023-07-20 15:55:38 
+building GPT model ...
+ > number of parameters on (tensor, pipeline) model parallel rank (13, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (14, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (10, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (12, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (8, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (11, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (9, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (2, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (7, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (3, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (1, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (15, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (0, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (5, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (6, 0): 78124544
+ > number of parameters on (tensor, pipeline) model parallel rank (4, 0): 78124544
+> learning rate decay style: cosine
+[after model, optimizer, and learning rate scheduler are built] datetime: 2023-07-20 15:55:38 
+> building train, validation, and test datasets ...
+ > datasets target sizes (minimum size):
+    train:      96
+    validation: 16
+    test:       16
+> building train, validation, and test datasets for GPT ...
+Single data path provided for train, valid & test
+ > building dataset index ...
+    reading sizes...
+    reading pointers...
+    reading document index...
+    creating numpy buffer of mmap...
+    creating memory view of numpy buffer...
+ > finished creating indexed dataset in 0.002233 seconds
+    number of documents: 17868
+ > dataset split:
+    train:
+     document indices in [0, 16957) total of 16957 documents
+    validation:
+     document indices in [16957, 17850) total of 893 documents
+    test:
+     document indices in [17850, 17868) total of 18 documents
+ > WARNING: could not find index map files, building the indices on rank 0 ...
+ > only one epoch required, setting separate_last_epoch to False
+ > elasped time to build and save doc-idx mapping (seconds): 0.001517
+    using:
+     number of documents:       16957
+     number of epochs:          1
+     sequence length:           4096
+     total number of samples:   373858
+ > elasped time to build and save sample-idx mapping (seconds): 0.004053
+ > building shuffle index with split [0, 373858) and [373858, 373858) ...
+ > elasped time to build and save shuffle-idx mapping (seconds): 0.010171
+ > loading doc-idx mapping from /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/index-cache/f155a874a4aa9b173dde4fd9d177c90c_doc_idx.npy
+ > loading sample-idx mapping from /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/index-cache/f155a874a4aa9b173dde4fd9d177c90c_sample_idx.npy
+ > loading shuffle-idx mapping from /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/index-cache/f155a874a4aa9b173dde4fd9d177c90c_shuffle_idx.npy
+    loaded indexed file in 0.004 seconds
+    total number of samples: 373859
+    total number of epochs: 1
+ > WARNING: could not find index map files, building the indices on rank 0 ...
+ > only one epoch required, setting separate_last_epoch to False
+ > elasped time to build and save doc-idx mapping (seconds): 0.001036
+    using:
+     number of documents:       893
+     number of epochs:          1
+     sequence length:           4096
+     total number of samples:   19451
+ > elasped time to build and save sample-idx mapping (seconds): 0.001053
+ > building shuffle index with split [0, 19451) and [19451, 19451) ...
+ > elasped time to build and save shuffle-idx mapping (seconds): 0.001401
+ > loading doc-idx mapping from /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/index-cache/686c39f0f40c1a6daa8e705704caa995_doc_idx.npy
+ > loading sample-idx mapping from /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/index-cache/686c39f0f40c1a6daa8e705704caa995_sample_idx.npy
+ > loading shuffle-idx mapping from /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/index-cache/686c39f0f40c1a6daa8e705704caa995_shuffle_idx.npy
+    loaded indexed file in 0.001 seconds
+    total number of samples: 19452
+    total number of epochs: 1
+ > WARNING: could not find index map files, building the indices on rank 0 ...
+ > only one epoch required, setting separate_last_epoch to False
+ > elasped time to build and save doc-idx mapping (seconds): 0.000896
+    using:
+     number of documents:       18
+     number of epochs:          1
+     sequence length:           4096
+     total number of samples:   547
+ > elasped time to build and save sample-idx mapping (seconds): 0.000965
+ > building shuffle index with split [0, 547) and [547, 547) ...
+ > elasped time to build and save shuffle-idx mapping (seconds): 0.000887
+ > loading doc-idx mapping from /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/index-cache/d22414bd39de320d470f8d000608e412_doc_idx.npy
+ > loading sample-idx mapping from /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/index-cache/d22414bd39de320d470f8d000608e412_sample_idx.npy
+ > loading shuffle-idx mapping from /lus/eagle/projects/MDClimSim/chengming/gpt_datasets/index-cache/d22414bd39de320d470f8d000608e412_shuffle_idx.npy
+    loaded indexed file in 0.001 seconds
+    total number of samples: 548
+    total number of epochs: 1
+> finished creating GPT datasets ...
+[after dataloaders are built] datetime: 2023-07-20 15:55:42 
+done with setup ...
+(min, max) time across ranks (ms):
+    model-and-optimizer-setup ......................: (232.13, 249.82)
+    train/valid/test-data-iterators-setup ..........: (3448.77, 3597.98)
+training ...
+[before the start of training step] datetime: 2023-07-20 15:55:42 
+NCCL version 2.14.3+cuda11.8
+NCCL version 2.14.3+cuda11.8
+NCCL version 2.14.3+cuda11.8
+NCCL version 2.14.3+cuda11.8
+NCCL version 2.14.3+cuda11.8
+NCCL version 2.14.3+cuda11.8
+NCCL version 2.14.3+cuda11.8
+(min, max) time across ranks (ms):
+    forward-compute ................................: (2348.55, 2670.16)
+    forward-compute-no-batch .......................: (2155.37, 2157.73)
+    backward-compute ...............................: (778.49, 1099.13)
+ iteration        1/       6 | consumed samples:           16 | elapsed time per iteration (ms): 6877.2 | learning rate: 1.500E-04 | global batch size:    16 | loss scale: 4294967296.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
+[Rank 1] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 34668.0 | max reserved: 34668.0
+[Rank 7] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 34476.0 | max reserved: 34476.0
+[Rank 4] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 34540.0 | max reserved: 34540.0
+[Rank 6] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 35372.0 | max reserved: 35372.0
+[Rank 5] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 34604.0 | max reserved: 34604.0
+[Rank 3] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 34604.0 | max reserved: 34604.0
+[Rank 0] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 34412.0 | max reserved: 34412.0
+[Rank 2] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 35180.0 | max reserved: 35180.0
+[Rank 12] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 35052.0 | max reserved: 35052.0
+[Rank 11] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 34924.0 | max reserved: 34924.0
+[Rank 14] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 35180.0 | max reserved: 35180.0
+[Rank 8] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 35180.0 | max reserved: 35180.0
+[Rank 10] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 34988.0 | max reserved: 34988.0
+[Rank 15] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 35180.0 | max reserved: 35180.0
+[Rank 9] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 35180.0 | max reserved: 35180.0
+[Rank 13] (after 1 iterations) memory (MB) | allocated: 967.0634765625 | max allocated: 33080.21728515625 | reserved: 34924.0 | max reserved: 34924.0
+(min, max) time across ranks (ms):
+    forward-backward ...............................: (3448.75, 3449.73)
+    batch-generator ................................: (190.33, 192.81)
+    layernorm-grads-all-reduce .....................: (0.02, 0.03)
+    embedding-grads-all-reduce .....................: (0.03, 0.04)
+    grads-all-reduce ...............................: (0.27, 0.34)
+    optimizer-copy-to-main-grad ....................: (2.00, 2.56)
+    optimizer-unscale-and-check-inf ................: (3418.25, 3418.65)
+    optimizer ......................................: (3421.05, 3421.45)
+(min, max) time across ranks (ms):
+    forward-compute ................................: (771.34, 771.39)
+    forward-compute-no-batch .......................: (769.99, 770.10)
+    backward-compute ...............................: (416.17, 417.31)
+ iteration        2/       6 | consumed samples:           32 | elapsed time per iteration (ms): 1202.1 | learning rate: 1.500E-04 | global batch size:    16 | loss scale: 2147483648.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
+(min, max) time across ranks (ms):
+    forward-backward ...............................: (1188.43, 1189.28)
+    batch-generator ................................: (0.87, 1.02)
+    layernorm-grads-all-reduce .....................: (0.02, 0.02)
+    embedding-grads-all-reduce .....................: (0.02, 0.03)
+    grads-all-reduce ...............................: (0.25, 0.27)
+    optimizer-copy-to-main-grad ....................: (2.04, 2.43)
+    optimizer-unscale-and-check-inf ................: (1.26, 1.27)
+    optimizer ......................................: (4.01, 4.14)
+(min, max) time across ranks (ms):
+    forward-compute ................................: (911.46, 911.64)
+    forward-compute-no-batch .......................: (910.29, 910.38)
+    backward-compute ...............................: (413.02, 413.78)
+ iteration        3/       6 | consumed samples:           48 | elapsed time per iteration (ms): 1339.8 | learning rate: 1.500E-04 | global batch size:    16 | loss scale: 1073741824.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
+(min, max) time across ranks (ms):
+    forward-backward ...............................: (1325.40, 1326.55)
+    batch-generator ................................: (0.74, 0.86)
+    layernorm-grads-all-reduce .....................: (0.02, 0.03)
+    embedding-grads-all-reduce .....................: (0.02, 0.04)
+    grads-all-reduce ...............................: (0.26, 0.32)
+    optimizer-copy-to-main-grad ....................: (1.97, 3.47)
+    optimizer-unscale-and-check-inf ................: (1.45, 1.47)
+    optimizer ......................................: (5.24, 5.27)
+(min, max) time across ranks (ms):
+    forward-compute ................................: (738.93, 738.96)
+    forward-compute-no-batch .......................: (737.70, 737.79)
+    backward-compute ...............................: (411.58, 412.55)
+ iteration        4/       6 | consumed samples:           64 | elapsed time per iteration (ms): 1164.2 | learning rate: 1.500E-04 | global batch size:    16 | loss scale: 536870912.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
+(min, max) time across ranks (ms):
+    forward-backward ...............................: (1151.40, 1152.42)
+    batch-generator ................................: (0.81, 0.91)
+    layernorm-grads-all-reduce .....................: (0.02, 0.02)
+    embedding-grads-all-reduce .....................: (0.02, 0.03)
+    grads-all-reduce ...............................: (0.25, 0.28)
+    optimizer-copy-to-main-grad ....................: (1.99, 2.52)
+    optimizer-unscale-and-check-inf ................: (1.19, 1.21)
+    optimizer ......................................: (3.94, 3.96)
+(min, max) time across ranks (ms):
+    forward-compute ................................: (719.08, 719.68)
+    forward-compute-no-batch .......................: (717.95, 717.98)
+    backward-compute ...............................: (413.88, 415.24)
+ iteration        5/       6 | consumed samples:           80 | elapsed time per iteration (ms): 1147.4 | learning rate: 1.500E-04 | global batch size:    16 | loss scale: 268435456.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
+(min, max) time across ranks (ms):
+    forward-backward ...............................: (1134.54, 1135.31)
+    batch-generator ................................: (0.76, 0.86)
+    layernorm-grads-all-reduce .....................: (0.02, 0.02)
+    embedding-grads-all-reduce .....................: (0.02, 0.04)
+    grads-all-reduce ...............................: (0.25, 0.31)
+    optimizer-copy-to-main-grad ....................: (1.97, 2.49)
+    optimizer-unscale-and-check-inf ................: (1.23, 1.24)
+    optimizer ......................................: (3.95, 3.97)
+(min, max) time across ranks (ms):
+    forward-compute ................................: (760.22, 760.28)
+    forward-compute-no-batch .......................: (758.94, 759.06)
+    backward-compute ...............................: (526.09, 527.04)
+ iteration        6/       6 | consumed samples:           96 | elapsed time per iteration (ms): 1299.9 | learning rate: 1.500E-04 | global batch size:    16 | loss scale: 134217728.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
+(min, max) time across ranks (ms):
+    forward-backward ...............................: (1287.12, 1288.20)
+    batch-generator ................................: (0.80, 0.94)
+    layernorm-grads-all-reduce .....................: (0.02, 0.02)
+    embedding-grads-all-reduce .....................: (0.02, 0.03)
+    grads-all-reduce ...............................: (0.26, 0.31)
+    optimizer-copy-to-main-grad ....................: (2.01, 2.48)
+    optimizer-unscale-and-check-inf ................: (1.23, 1.24)
+    optimizer ......................................: (3.96, 3.97)
+[after training is done] datetime: 2023-07-20 15:55:55 
+Evaluating iter 1/1
+-----------------------------------------------------------------------------------------------------------------------------------
+ validation loss at iteration 6 on 16-sample draw from validation set | lm loss value: 1.111399E+01 | lm loss PPL: 6.710333E+04 | 
+-----------------------------------------------------------------------------------------------------------------------------------
+Evaluating iter 1/1
+-----------------------------------------------------------------------------------------------------------------------------
+ validation loss at iteration 6 on 16-sample draw from test set | lm loss value: 1.110217E+01 | lm loss PPL: 6.631459E+04 | 
+-----------------------------------------------------------------------------------------------------------------------------
