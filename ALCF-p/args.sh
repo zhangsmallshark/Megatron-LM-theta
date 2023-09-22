@@ -64,15 +64,13 @@ PARENT=$(dirname "$DIR")
 # MPSIZE=8
 # PPSIZE=16
 # ----------
-
-NHOSTS=$(wc -l < "${COBALT_NODEFILE}")
-NGPU_PER_HOST=8
+# NHOSTS=$(wc -l < "${PBS_NODEFILE}")
 export DDP_IMPL="local"   # FSDP | local | torch
 export USE_FLASH_ATTN=1  # 1 | 0
 export USE_ACTIVATION_CHECKPOINTING=1  # 1 | 0
-export MPSIZE=$((${NHOSTS} * ${NGPU_PER_HOST}))
+export MPSIZE=4
 export PPSIZE=1
-NUM_K=2
+export NUM_K=2
 export SEQ_LEN=$(( 1024 * $NUM_K / $MPSIZE * $MPSIZE ))
 export MICRO_BATCH=1
 export ZERO_STAGE=0  # 0 | 1 | 2 | 3
@@ -235,9 +233,13 @@ fi
 # ┃ MEGATRON-LM SETTINGS ┃
 # ┗━━━━━━━━━━━━━━━━━━━━━━┛
 # --sequence-parallel \
+# --no-async-tensor-model-parallel-allreduce \
+# --no-position-embedding \
+#  --DDP-impl ${DDP_IMPL} \
+#   --data-impl mmap \
+
 gpt_args="\
   --seed ${RANDOM} \
-  --DDP-impl ${DDP_IMPL} \
   --pipeline-model-parallel-size ${PPSIZE} \
   --tensor-model-parallel-size ${MPSIZE} \
   --num-layers ${NLAYERS} \
@@ -247,13 +249,12 @@ gpt_args="\
   --global-batch-size ${GLOBAL_BATCH} \
   --seq-length ${SEQ_LEN} \
   --max-position-embeddings ${SEQ_LEN} \
-  --train-iters 2 \
+  --train-iters 10 \
   --lr-decay-iters 320000 \
   --num-workers 1 \
   --data-path $DATA_PATH \
   --vocab-file $VOCAB_FILE \
   --merge-file $MERGE_FILE \
-  --data-impl mmap \
   --split 949,50,1 \
   --distributed-backend nccl \
   --lr 0.00015 \
@@ -282,25 +283,27 @@ gpt_args="\
 #     --checkpoint-num-layers 1 \
 #     ${gpt_args}"
 # fi
+    # --recompute-method uniform \
+
+    # --recompute-num-layers 1 \
 
 if [[ "$USE_ACTIVATION_CHECKPOINTING" == 1 ]]; then
   gpt_args="\
     --recompute-activations \
     --recompute-granularity full \
-    --recompute-num-layers 1 \
     ${gpt_args}"
 fi
 
-# if [[ "$DDP_IMPL" != "FSDP" ]] ; then
-#   gpt_args="${gpt_args} --fp16"
-# else
-#   gpt_args="${gpt_args} --bf16"
-# fi
+if [[ "$DDP_IMPL" != "FSDP" ]] ; then
+  gpt_args="${gpt_args} --fp16"
+else
+  gpt_args="${gpt_args} --bf16"
+fi
 
-# if [[ "$USE_FLASH_ATTN" == 1 ]] ; then
-#   gpt_args="\
-#     --use-flash-attn \
-#     ${gpt_args}"
-# fi
+if [[ "$USE_FLASH_ATTN" == 1 ]] ; then
+  gpt_args="\
+    --use-flash-attn \
+    ${gpt_args}"
+fi
 
 export gpt_args="$gpt_args"

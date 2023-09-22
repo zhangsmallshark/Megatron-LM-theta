@@ -137,8 +137,8 @@ class _CopyToModelParallelRegion(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        return grad_output
-        # return _reduce(grad_output)
+        # return grad_output
+        return _reduce(grad_output)
 
 
 class _ReduceFromModelParallelRegion(torch.autograd.Function):

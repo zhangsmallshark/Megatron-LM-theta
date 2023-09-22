@@ -722,15 +722,15 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
         # output = prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10)
         # print(output)
         if is_rank_0():
-            prof.export_chrome_trace(f"./traces/{mp_size}MP-{seq_len}k-{micro_batch}MB-2P-23-{time_stamp}.json")
+            prof.export_chrome_trace(f"./traces1/{mp_size}MP-{seq_len}k-{micro_batch}MB-t0-{time_stamp}.json")
 
-    with profile(
-        activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-        record_shapes=True,
-        schedule=torch.profiler.schedule(wait=1, warmup=1, active=3),
-        on_trace_ready=trace_handler
-    ) as prof:
-    # if True:
+    # with profile(
+    #     activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+    #     record_shapes=True,
+    #     schedule=torch.profiler.schedule(wait=1, warmup=1, active=3),
+    #     on_trace_ready=trace_handler
+    # ) as prof:
+    if True:
         while iteration < args.train_iters:
             update_num_microbatches(args.consumed_train_samples)
             args.curr_iteration = iteration
@@ -742,7 +742,7 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                         opt_param_scheduler)
             iteration += 1
             timers.log(['forward-compute', 'forward-compute-no-batch', 'backward-compute'])
-            prof.step()
+            # prof.step()
 
             args.consumed_train_samples += mpu.get_data_parallel_world_size() * \
                                         args.micro_batch_size * \

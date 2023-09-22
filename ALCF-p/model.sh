@@ -22,8 +22,7 @@
 # ┃ GPT-3: 1.3B Params ┃
 # ┗━━━━━━━━━━━━━━━━━━━━┛
 # MODEL_SIZE="1.3B"
-# # NLAYERS=20
-# NLAYERS=10
+# NLAYERS=20
 # HIDDEN=2048
 # ATEN_HEADS=64
 
@@ -54,10 +53,10 @@
 # ┏━━━━━━━━━━━━━━━━━━━━━━┓
 # ┃ ✓ GPT-3: 6.7B Params ┃
 # ┗━━━━━━━━━━━━━━━━━━━━━━┛
-# MODEL_SIZE="6.7B"
-# NLAYERS=32
-# HIDDEN=4096
-# ATEN_HEADS=32
+MODEL_SIZE="6.7B"
+NLAYERS=32
+HIDDEN=4096
+ATEN_HEADS=32
 
 # ┏━━━━━━━━━━━━━━━━━━━━━┓
 # ┃ ✓ GPT-3: 13B Params ┃
@@ -70,10 +69,10 @@
 # ┏━━━━━━━━━━━━━━━━━━━━━━━┓
 # ┃ ✓ GPT-3: 18.4B Params ┃
 # ┗━━━━━━━━━━━━━━━━━━━━━━━┛
-MODEL_SIZE="18.4B"
-NLAYERS=40
-HIDDEN=6144
-ATEN_HEADS=48
+# MODEL_SIZE="18.4B"
+# NLAYERS=40
+# HIDDEN=6144
+# ATEN_HEADS=48
 
 # ┏━━━━━━━━━━━━━━━━━━━━━┓
 # ┃ ✓ GPT-3: 20B Params ┃
@@ -107,7 +106,7 @@ ATEN_HEADS=48
 # MODEL_SIZE="30B"
 # NLAYERS=64
 # HIDDEN=6144
-# ATEN_HEADS=64  
+# ATEN_HEADS=64
 
 # ┏━━━━━━━━━━━━━━━━━━━┓
 # ┃ GPT-3: 33B Params ┃

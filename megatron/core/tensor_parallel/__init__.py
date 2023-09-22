@@ -6,6 +6,7 @@ from .layers import (
     RowParallelLinear,
     ColumnParallelLinear1,
     RowParallelLinear1,
+    RowParallelLinear2,
     VocabParallelEmbedding,
     set_tensor_model_parallel_attributes,
     set_defaults_if_not_set_tensor_model_parallel_attributes,
